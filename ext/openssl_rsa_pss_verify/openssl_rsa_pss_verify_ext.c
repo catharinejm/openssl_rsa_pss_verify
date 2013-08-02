@@ -38,6 +38,7 @@ VALUE __openssl_rsa_pss_verify(VALUE self, VALUE vSig, VALUE vData, VALUE vSaltL
     default:
     rb_raise(rb_cRSAError, NULL);
   }
+  return Qnil; //dummy
 }
 
 
