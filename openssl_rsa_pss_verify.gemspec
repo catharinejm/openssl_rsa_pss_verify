@@ -20,6 +20,7 @@ Gem::Specification.new do |s|
   s.require_paths = ["lib", "ext"]
   s.extensions = %w{ext/openssl_rsa_pss_verify/extconf.rb}
 
-  #s.add_development_dependency "rspec", "~> 2.11.0"
+  s.add_development_dependency "rspec", "~> 2.14.1"
+  s.add_development_dependency "fuubar", "~> 1.1.1"
   s.add_development_dependency 'rake-compiler', "~> 0.8.3"
 end
