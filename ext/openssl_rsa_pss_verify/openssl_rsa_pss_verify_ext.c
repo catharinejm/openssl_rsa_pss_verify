@@ -45,14 +45,16 @@ static char * read_errors(BIO * bio_err, char ** buf) {
   bio_err = BIO_new(BIO_s_mem());
   ERR_print_errors(bio_err);
   BIO_get_mem_ptr(bio_err, &bmem);
-  *buf = BUF_strdup(bmem->data);
+  *buf = malloc(bmem->length+1);
+  memcpy(*buf, bmem->data, bmem->length);
+  *buf[bmem->length] = '\0';
   return *buf;
 }
 
 static VALUE cleanup_bio(VALUE arg) {
   struct ORPV_error_vals * errs = (struct ORPV_error_vals*)arg;
   BIO_free(errs->bio_err);
-  OPENSSL_free(errs->ossl_errs);
+  free(errs->ossl_errs);
   return Qnil;
 }
 
