@@ -33,9 +33,36 @@ static enum ORPV_errors {
 #define BIND_ERR_STR(str_p) \
   if (ERR_peek_error()) ERR_error_string(ERR_get_error(), (str_p));
 
+static long read_errors(BIO * bio_err, char ** buf) {
+  bio_err = BIO_new(BIO_s_mem());
+  ERR_print_errors(bio_err);
+  return BIO_get_mem_data(bio_err, buf);
+}
+
+static VALUE cleanup_bio(VALUE bio) {
+  BIO_free((BIO*) bio);
+  return Qnil;
+}
+
+struct ORPV_error_vals {
+  VALUE errClass;
+  const char * msg;
+  char * ossl_errs;
+};
+
+
+VALUE raise_ossl_errors(VALUE arg) {
+  struct ORPV_error_vals * errs = (struct ORPV_error_vals*)arg;
+  if (errs->ossl_errs)
+    rb_raise(errs->errClass, "%s\n%s", errs->msg, errs->ossl_errs);
+  else
+    rb_raise(errs->errClass, "%s", errs->msg);
+
+  return Qnil;
+}
 
 VALUE ORPV__verify_pss_sha1(VALUE self, VALUE vPubKey, VALUE vSig, VALUE vHashData, VALUE vSaltLen) {
-  BIO * pkey_bio = NULL;
+  BIO * pkey_bio = NULL, * bio_err = NULL;
   RSA * rsa_pub_key = NULL;
   EVP_PKEY * pkey = NULL;
   EVP_PKEY_CTX * pkey_ctx = NULL;
@@ -43,6 +70,7 @@ VALUE ORPV__verify_pss_sha1(VALUE self, VALUE vPubKey, VALUE vSig, VALUE vHashDa
   
   int verify_rval = -1, salt_len;
   char ossl_err_str[120] = "[no internal OpenSSL error was flagged]";
+  struct ORPV_error_vals error_vals;
 
   vPubKey = StringValue(vPubKey);
   vSig = StringValue(vSig);
@@ -155,8 +183,12 @@ Cleanup:
       rb_raise(rb_cRSAError, "Failed to assign RSA object to PKEY\n%s", ossl_err_str);
       break;
     case PKEY_CTX_INIT:
-      BIND_ERR_STR(ossl_err_str);
-      rb_raise(rb_cRSAError, "Failed to initialize PKEY context.\n%s", ossl_err_str);
+      error_vals.errClass = rb_cRSAError;
+      error_vals.msg = "Failed to initialize PKEY context.";
+      read_errors(bio_err, &error_vals.ossl_errs);
+
+      rb_ensure(&raise_ossl_errors, (VALUE)&error_vals, &cleanup_bio, (VALUE)bio_err);
+
       break;
     case VERIFY_INIT:
       BIND_ERR_STR(ossl_err_str);
