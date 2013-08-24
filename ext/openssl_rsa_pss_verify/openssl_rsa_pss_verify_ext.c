@@ -30,26 +30,31 @@ static enum ORPV_errors {
   SET_SALTLEN,
 } err = OK;
 
-#define BIND_ERR_STR(str_p) \
-  if (ERR_peek_error()) ERR_error_string(ERR_get_error(), (str_p));
-
-static long read_errors(BIO * bio_err, char ** buf) {
-  bio_err = BIO_new(BIO_s_mem());
-  ERR_print_errors(bio_err);
-  return BIO_get_mem_data(bio_err, buf);
-}
-
-static VALUE cleanup_bio(VALUE bio) {
-  BIO_free((BIO*) bio);
-  return Qnil;
-}
-
 struct ORPV_error_vals {
   VALUE errClass;
   const char * msg;
   char * ossl_errs;
+  BIO * bio_err;
 };
 
+#define BIND_ERR_STR(str_p) \
+  if (ERR_peek_error()) ERR_error_string(ERR_get_error(), (str_p));
+
+static char * read_errors(BIO * bio_err, char ** buf) {
+  BUF_MEM * bmem;
+  bio_err = BIO_new(BIO_s_mem());
+  ERR_print_errors(bio_err);
+  BIO_get_mem_ptr(bio_err, &bmem);
+  *buf = BUF_strdup(bmem->data);
+  return *buf;
+}
+
+static VALUE cleanup_bio(VALUE arg) {
+  struct ORPV_error_vals * errs = (struct ORPV_error_vals*)arg;
+  BIO_free(errs->bio_err);
+  OPENSSL_free(errs->ossl_errs);
+  return Qnil;
+}
 
 VALUE raise_ossl_errors(VALUE arg) {
   struct ORPV_error_vals * errs = (struct ORPV_error_vals*)arg;
@@ -62,7 +67,7 @@ VALUE raise_ossl_errors(VALUE arg) {
 }
 
 VALUE ORPV__verify_pss_sha1(VALUE self, VALUE vPubKey, VALUE vSig, VALUE vHashData, VALUE vSaltLen) {
-  BIO * pkey_bio = NULL, * bio_err = NULL;
+  BIO * pkey_bio = NULL;
   RSA * rsa_pub_key = NULL;
   EVP_PKEY * pkey = NULL;
   EVP_PKEY_CTX * pkey_ctx = NULL;
@@ -185,9 +190,9 @@ Cleanup:
     case PKEY_CTX_INIT:
       error_vals.errClass = rb_cRSAError;
       error_vals.msg = "Failed to initialize PKEY context.";
-      read_errors(bio_err, &error_vals.ossl_errs);
+      read_errors(error_vals.bio_err, &error_vals.ossl_errs);
 
-      rb_ensure(&raise_ossl_errors, (VALUE)&error_vals, &cleanup_bio, (VALUE)bio_err);
+      rb_ensure(&raise_ossl_errors, (VALUE)&error_vals, &cleanup_bio, (VALUE)&error_vals);
 
       break;
     case VERIFY_INIT:
