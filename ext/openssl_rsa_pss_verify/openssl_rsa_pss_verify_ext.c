@@ -151,7 +151,11 @@ Cleanup:
       rb_raise(rb_cRSAError, "Failed to assign RSA object to PKEY");
       break;
     case PKEY_CTX_INIT:
-      rb_raise(rb_cRSAError, "Failed to initialize PKEY context.");
+      ossl_errcode = ERR_get_error();
+      if (ossl_errcode)
+        rb_raise(rb_cRSAError, "Failed to initialize PKEY context.\n%s", ERR_error_string(ossl_errcode, NULL));
+      else
+        rb_raise(rb_cRSAError, "Failed to initialize PKEY context.\n(no OpenSSL error found)");
       break;
     case VERIFY_INIT:
       rb_raise(rb_cRSAError, "Failed to initialize verification process.");
