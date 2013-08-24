@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    openssl_rsa_pss_verify (0.1.0)
+    openssl_rsa_pss_verify (0.1.1)
 
 GEM
   remote: http://rubygems.org/
