@@ -30,6 +30,10 @@ static enum ORPV_errors {
   SET_SALTLEN,
 } err = OK;
 
+#define BIND_ERR_STR(str_p) \
+  if (ERR_peek_error()) ERR_error_string(ERR_get_error(), (str_p));
+
+
 VALUE ORPV__verify_pss_sha1(VALUE self, VALUE vPubKey, VALUE vSig, VALUE vHashData, VALUE vSaltLen) {
   BIO * pkey_bio = NULL;
   RSA * rsa_pub_key = NULL;
@@ -38,7 +42,7 @@ VALUE ORPV__verify_pss_sha1(VALUE self, VALUE vPubKey, VALUE vSig, VALUE vHashDa
   char * pub_key = NULL;
   
   int verify_rval = -1, salt_len;
-  unsigned long ossl_errcode;
+  char ossl_err_str[120] = "[no internal OpenSSL error was flagged]";
 
   vPubKey = StringValue(vPubKey);
   vSig = StringValue(vSig);
@@ -127,11 +131,8 @@ Cleanup:
         case 0:
           return Qfalse;
         default:
-          ossl_errcode = ERR_get_error();
-          if (ossl_errcode)
-            rb_raise(rb_cRSAError, "%s", ERR_error_string(ossl_errcode, NULL));
-          else
-            rb_raise(rb_cRSAError, "An unknown error occurred during validation.");
+          BIND_ERR_STR(ossl_err_str)
+          rb_raise(rb_cRSAError, "An error occurred during validation.\n%s", ossl_err_str);
       }
       break;
 
@@ -139,38 +140,43 @@ Cleanup:
       rb_raise(rb_cRSAError, "Your public key is too big. How is that even possible?");
       break;
     case NOMEM:
-      rb_raise(rb_const_get_at(rb_mErrno, rb_intern("ENOMEM")), NULL);
+      rb_raise(rb_const_get_at(rb_mErrno, rb_intern("ENOMEM")), "Insufficient memory to allocate pubkey copy. Woof.");
       break;
     case PUBKEY_PARSE:
-      rb_raise(rb_cRSAError, "Error parsing public key");
+      BIND_ERR_STR(ossl_err_str);
+      rb_raise(rb_cRSAError, "Error parsing public key\n%s", ossl_err_str);
       break;
     case PKEY_INIT:
-      rb_raise(rb_cRSAError, "Failed to initialize PKEY");
+      BIND_ERR_STR(ossl_err_str);
+      rb_raise(rb_cRSAError, "Failed to initialize PKEY\n%s", ossl_err_str);
       break;
     case RSA_ASSIGN:
-      rb_raise(rb_cRSAError, "Failed to assign RSA object to PKEY");
+      BIND_ERR_STR(ossl_err_str);
+      rb_raise(rb_cRSAError, "Failed to assign RSA object to PKEY\n%s", ossl_err_str);
       break;
     case PKEY_CTX_INIT:
-      ossl_errcode = ERR_get_error();
-      if (ossl_errcode)
-        rb_raise(rb_cRSAError, "Failed to initialize PKEY context.\n%s", ERR_error_string(ossl_errcode, NULL));
-      else
-        rb_raise(rb_cRSAError, "Failed to initialize PKEY context.\n(no OpenSSL error found)");
+      BIND_ERR_STR(ossl_err_str);
+      rb_raise(rb_cRSAError, "Failed to initialize PKEY context.\n%s", ossl_err_str);
       break;
     case VERIFY_INIT:
-      rb_raise(rb_cRSAError, "Failed to initialize verification process.");
+      BIND_ERR_STR(ossl_err_str);
+      rb_raise(rb_cRSAError, "Failed to initialize verification process.\n%s", ossl_err_str);
       break;
     case SET_SIG_MD:
-      rb_raise(rb_cRSAError, "Failed to set signature message digest to SHA1.");
+      BIND_ERR_STR(ossl_err_str);
+      rb_raise(rb_cRSAError, "Failed to set signature message digest to SHA1.\n%s", ossl_err_str);
       break;
     case SET_PADDING:
-      rb_raise(rb_cRSAError, "Failed to set PSS padding.");
+      BIND_ERR_STR(ossl_err_str);
+      rb_raise(rb_cRSAError, "Failed to set PSS padding.\n%s", ossl_err_str);
       break;
     case SET_SALTLEN:
-      rb_raise(rb_cRSAError, "Failed to set salt length.");
+      BIND_ERR_STR(ossl_err_str);
+      rb_raise(rb_cRSAError, "Failed to set salt length.\n%s", ossl_err_str);
       break;
     default:
-      rb_raise(rb_eRuntimeError, "Something has gone horribly wrong.");
+      BIND_ERR_STR(ossl_err_str);
+      rb_raise(rb_eRuntimeError, "Something has gone horribly wrong.\n%s", ossl_err_str);
   }
 
   return Qnil;
