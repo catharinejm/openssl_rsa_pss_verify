@@ -16,7 +16,7 @@ static VALUE rb_mPKey;
 static VALUE rb_cRSA;
 static VALUE rb_cRSAError;
 
-static enum ORPV_errors {
+enum ORPV_errors {
   OK,
   KEY_OVERFLOW,
   NOMEM,
@@ -28,13 +28,15 @@ static enum ORPV_errors {
   SET_SIG_MD,
   SET_PADDING,
   SET_SALTLEN,
-} err = OK;
+};
 
 #define BIND_ERR_STR(str_p) \
   if (ERR_peek_error()) ERR_error_string(ERR_get_error(), (str_p));
 
 
 VALUE ORPV__verify_pss_sha1(VALUE self, VALUE vPubKey, VALUE vSig, VALUE vHashData, VALUE vSaltLen) {
+  enum ORPV_errors err = OK;
+
   BIO * pkey_bio = NULL;
   RSA * rsa_pub_key = NULL;
   EVP_PKEY * pkey = NULL;
