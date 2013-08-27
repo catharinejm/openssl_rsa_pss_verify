@@ -1,3 +1,3 @@
 module OpenSSL_RSA_PSS_Verify
-  VERSION = "0.1.2"
+  VERSION = "0.1.3"
 end
