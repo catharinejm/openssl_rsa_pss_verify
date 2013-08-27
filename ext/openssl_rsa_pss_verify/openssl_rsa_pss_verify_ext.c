@@ -49,13 +49,13 @@ static void bind_err_strs(char * strs, int max) {
     strncat(strs, ERR_error_string(ERR_get_error(), NULL), OSSL_ERR_STR_LEN);
   }
 
-  if (err_cnt == (max-1) && ERR_peek_error()) {
+  if (ERR_peek_error()) {
     ERR_error_string_n(ERR_get_error(), last_err, OSSL_ERR_STR_LEN);
     ++err_cnt;
     
     if (ERR_peek_error()) {
       while(ERR_get_error()) ++err_cnt;
-      snprintf(last_err, OSSL_ERR_STR_LEN, "[%i additional errors truncated]", err_cnt);
+      snprintf(last_err, OSSL_ERR_STR_LEN, "[%i additional errors truncated]", (max - err_cnt + 1));
     }
     strcat(strs, "\n");
     strncat(strs, last_err, OSSL_ERR_STR_LEN);
