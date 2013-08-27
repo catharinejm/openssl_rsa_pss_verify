@@ -18,6 +18,7 @@ static VALUE rb_cRSAError;
 
 enum ORPV_errors {
   OK,
+  EXTERNAL,
   KEY_OVERFLOW,
   NOMEM,
   PUBKEY_PARSE,
@@ -45,6 +46,11 @@ VALUE ORPV__verify_pss_sha1(VALUE self, VALUE vPubKey, VALUE vSig, VALUE vHashDa
   
   int verify_rval = -1, salt_len;
   char ossl_err_str[120] = "[no internal OpenSSL error was flagged]";
+
+  if (ERR_peek_error()) {
+    err = EXTERNAL;
+    goto Cleanup;
+  }
 
   vPubKey = StringValue(vPubKey);
   vSig = StringValue(vSig);
@@ -138,6 +144,10 @@ Cleanup:
       }
       break;
 
+    case EXTERNAL:
+      BIND_ERR_STR(ossl_err_str);
+      rb_raise(rb_eRuntimeError, "OpenSSL was in an error state prior to invoking this verification.\n%s", ossl_err_str);
+      break;
     case KEY_OVERFLOW:
       rb_raise(rb_cRSAError, "Your public key is too big. How is that even possible?");
       break;
