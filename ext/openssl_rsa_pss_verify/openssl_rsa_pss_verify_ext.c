@@ -36,7 +36,7 @@ enum ORPV_errors {
 
 static void bind_err_strs(char * strs, int max) {
   int i;
-  char last_err[OSSL_ERR_STR_LEN] = "";
+  char last_err[OSSL_ERR_STR_LEN];
 
   if (! ERR_peek_error()) {
     strcat(strs, "[no internal OpenSSL error was flagged]");
@@ -49,16 +49,15 @@ static void bind_err_strs(char * strs, int max) {
   }
 
   if (i == (max-1) && ERR_peek_error()) {
-    strncat(last_err, ERR_error_string(ERR_get_error(), NULL), OSSL_ERR_STR_LEN);
+    snprintf(last_err, OSSL_ERR_STR_LEN, "\n%s", ERR_error_string(ERR_get_error(), NULL));
     
     if (ERR_peek_error()) {
       // Still yet another error past max
-      strcat(strs, "\n[additional errors truncated]");
-      while(ERR_get_error());
-    } else {
-      strcat(strs, "\n");
-      strcat(strs, last_err);
+      ++i;
+      while(ERR_get_error()) ++i;
+      snprintf(last_err, OSSL_ERR_STR_LEN, "\n[%i additional errors truncated]", i);
     }
+    strncat(strs, last_err, OSSL_ERR_STR_LEN);
   }
 }
 
