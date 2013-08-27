@@ -35,7 +35,7 @@ enum ORPV_errors {
 };
 
 static void bind_err_strs(char * strs, int max) {
-  int i;
+  int err_cnt;
   char last_err[OSSL_ERR_STR_LEN];
 
   if (! ERR_peek_error()) {
@@ -43,20 +43,21 @@ static void bind_err_strs(char * strs, int max) {
     return;
   }
 
-  for(i = 0; ERR_peek_error() && i < max - 1; ++i) {
-    strncat(strs, ERR_error_string(ERR_get_error(), NULL), OSSL_ERR_STR_LEN);
+  strncat(strs, ERR_error_string(ERR_get_error(), NULL), OSSL_ERR_STR_LEN);
+  for(err_cnt = 1; ERR_peek_error() && err_cnt < (max-1); ++err_cnt) {
     strcat(strs, "\n");
+    strncat(strs, ERR_error_string(ERR_get_error(), NULL), OSSL_ERR_STR_LEN);
   }
 
-  if (i == (max-1) && ERR_peek_error()) {
-    snprintf(last_err, OSSL_ERR_STR_LEN, "\n%s", ERR_error_string(ERR_get_error(), NULL));
+  if (err_cnt == (max-1) && ERR_peek_error()) {
+    ERR_error_string_n(ERR_get_error(), last_err, OSSL_ERR_STR_LEN);
+    ++err_cnt;
     
     if (ERR_peek_error()) {
-      // Still yet another error past max
-      ++i;
-      while(ERR_get_error()) ++i;
-      snprintf(last_err, OSSL_ERR_STR_LEN, "\n[%i additional errors truncated]", i);
+      while(ERR_get_error()) ++err_cnt;
+      snprintf(last_err, OSSL_ERR_STR_LEN, "[%i additional errors truncated]", err_cnt);
     }
+    strcat(strs, "\n");
     strncat(strs, last_err, OSSL_ERR_STR_LEN);
   }
 }
