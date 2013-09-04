@@ -11,9 +11,7 @@ raw_data = File.read("my_raw_data")
 signature = File.read("my_signature")
 salt_lenth = 0
 
-pubkey.verify_pss_sha1(signature, 
-                       OpenSSL::Digest::SHA1.digest(raw_data), 
-                       salt_length)
+pubkey.verify_pss_sha1(signature, raw_data, salt_length)
 #=> true or false
 ```
 
